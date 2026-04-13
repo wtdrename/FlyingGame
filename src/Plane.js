@@ -28,34 +28,28 @@ export class Plane {
         const noseGeo = new THREE.ConeGeometry(0.5, 1, 8);
         noseGeo.rotateX(Math.PI / 2);
         const nose = new THREE.Mesh(noseGeo, redMat);
-        // CORREÇÃO: minúsculo .z
-        nose.position.z = 3; 
+        // Protegendo o 'z' com aspas
+        nose['position']['z'] = 3; 
         this.mesh.add(nose);
 
         const propGeo = new THREE.BoxGeometry(0.1, 3, 0.2);
         this.propeller = new THREE.Mesh(propGeo, darkMat);
-        // CORREÇÃO: minúsculo .z
-        this.propeller.position.z = 3.5; 
+        this.propeller['position']['z'] = 3.5; 
         this.mesh.add(this.propeller);
 
         const wingGeo = new THREE.BoxGeometry(7, 0.1, 1.5);
         const wings = new THREE.Mesh(wingGeo, whiteMat);
-        // CORREÇÃO: minúsculo .z
-        wings.position.z = 0.5; 
+        wings['position']['z'] = 0.5; 
         wings.castShadow = true;
         this.mesh.add(wings);
 
-        const tailHorGeo = new THREE.BoxGeometry(2.5, 0.1, 0.8);
-        const tailHor = new THREE.Mesh(tailHorGeo, whiteMat);
-        // CORREÇÃO: minúsculo .z
-        tailHor.position.z = -2; 
+        const tailHor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.8), whiteMat);
+        tailHor['position']['z'] = -2; 
         this.mesh.add(tailHor);
 
-        const tailVerGeo = new THREE.BoxGeometry(0.1, 1.2, 0.8);
-        tailVerGeo.translate(0, 0.6, 0);
-        const tailVer = new THREE.Mesh(tailVerGeo, whiteMat);
-        // CORREÇÃO: minúsculo .z
-        tailVer.position.z = -2; 
+        const tailVer = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 0.8), whiteMat);
+        tailVer.geometry.translate(0, 0.6, 0);
+        tailVer['position']['z'] = -2; 
         this.mesh.add(tailVer);
     }
 
@@ -67,18 +61,18 @@ export class Plane {
 
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 2. CONTROLOS
+        // 2. CONTROLOS (Arrows)
         let targetPitch = 0;
         let targetRoll = 0;
 
-        // CORREÇÃO: minúsculo .y
         if (keys['ArrowUp']) {
             targetPitch = -0.5; 
-            this.mesh.position.y += 0.1 * (this.speed + 0.1); 
+            // Protegendo o 'y' com aspas
+            this.mesh['position']['y'] += 0.1 * (this.speed + 0.1); 
         }
         if (keys['ArrowDown']) {
             targetPitch = 0.5;
-            this.mesh.position.y -= 0.1 * (this.speed + 0.1);
+            this.mesh['position']['y'] -= 0.1 * (this.speed + 0.1);
         }
         if (keys['ArrowLeft']) targetRoll = 0.6;
         if (keys['ArrowRight']) targetRoll = -0.6;
@@ -86,21 +80,21 @@ export class Plane {
         this.pitch += (targetPitch - this.pitch) * 0.1;
         this.roll += (targetRoll - this.roll) * 0.1;
 
-        // CORREÇÃO: minúsculo .x e .z
-        this.mesh.rotation.x = this.pitch;
-        this.mesh.rotation.z = this.roll;
+        // Protegendo as rotações x e z
+        this.mesh['rotation']['x'] = this.pitch;
+        this.mesh['rotation']['z'] = this.roll;
 
         // 3. MOVIMENTO
         this.mesh.translateZ(this.speed); 
 
         // 4. HÉLICE
-        // CORREÇÃO: minúsculo .z
-        if (this.propeller) this.propeller.rotation.z += this.speed * 0.8;
+        if (this.propeller) {
+            this.propeller['rotation']['z'] += this.speed * 0.8;
+        }
 
         // 5. SOLO
-        // CORREÇÃO: minúsculo .y
-        if (this.mesh.position.y < 0.6) {
-            this.mesh.position.y = 0.6;
+        if (this.mesh['position']['y'] < 0.6) {
+            this.mesh['position']['y'] = 0.6;
             if (this.speed > 1.5 && this.pitch > 0.2) this._handleGroundCollision();
         }
     }
