@@ -55,69 +55,72 @@ export class Plane {
         tailVer.position.z = -2;
         this.mesh.add(tailVer);
     }
+update(keys) {
+    // 1. MOTOR (Sem atrito automático, apenas 'S' abranda)
+    if (keys['w'] || keys['W']) {
+        this.speed += 0.01;
+    } else if (keys['s'] || keys['S']) {
+        this.speed -= 0.02;
+    }
+    this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-    update(keys) {
-        // 1. ACELERAÇÃO (SÓ PERDE SPEED SE TRAVAR COM 'S')
-        if (keys['w'] || keys['W']) {
-            this.speed += 0.01;
-        } else if (keys['s'] || keys['S']) {
-            this.speed -= 0.02;
-        } 
-        // Removido o this.speed *= 0.99 para manter a velocidade constante
-        
-        this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
+    // 2. ATITUDE
+    let targetPitch = 0;
+    let targetRoll = 0;
+    if (keys['ArrowUp']) targetPitch = -0.5;
+    if (keys['ArrowDown']) targetPitch = 0.5;
+    if (keys['ArrowLeft']) targetRoll = 0.7;
+    if (keys['ArrowRight']) targetRoll = -0.7;
 
-        // 2. CONTROLOS DE ATITUDE
-        let targetPitch = 0;
-        let targetRoll = 0;
+    this.pitch += (targetPitch - this.pitch) * 0.1;
+    this.roll += (targetRoll - this.roll) * 0.1;
 
-        if (keys['ArrowUp']) targetPitch = -0.5;
-        if (keys['ArrowDown']) targetPitch = 0.5;
-        if (keys['ArrowLeft']) targetRoll = 0.7;
-        if (keys['ArrowRight']) targetRoll = -0.7;
+    this.mesh.rotation.x = this.pitch;
+    this.mesh.rotation.z = this.roll;
+    this.mesh.rotation.y -= this.roll * 0.02;
 
-        this.pitch += (targetPitch - this.pitch) * 0.1;
-        this.roll += (targetRoll - this.roll) * 0.1;
+    // 3. FÍSICA DE VOO (O SEGREDO ESTÁ AQUI)
+    
+    // Gravidade é uma força constante para baixo
+    const gravityForce = 0.015; 
+    
+    // Lift (Sustentação) depende da velocidade. 
+    // Se speed for 0, lift é 0.
+    const liftThreshold = 0.8; // Velocidade mínima para manter voo nivelado
+    const lift = (this.speed / liftThreshold) * gravityForce;
 
-        this.mesh.rotation.x = this.pitch;
-        this.mesh.rotation.z = this.roll;
-        this.mesh.rotation.y -= this.roll * 0.02;
+    // Se o nariz está para cima (pitch > 0), ganhamos subida baseado na velocidade
+    // Se a velocidade for baixa, o pitch não ajuda nada
+    const pitchInfluence = this.pitch * this.speed * 0.05;
 
-        // 3. LÓGICA DE LIFT (SUSTENTAÇÃO) VS GRAVIDADE
-        // Calculamos quanto de "força para cima" o avião tem baseado na velocidade
-        // Se a speed for < 0.8, o lift será menor que a gravidade e ele cai
-        const lift = this.speed * 0.012; 
-        
-        // A velocidade vertical sobe com o Pitch e o Lift, e desce com a Gravidade
-        this.velocityY += (this.pitch * this.speed * 0.05) + (lift - this.gravity);
-        
-        // Aplicar um pouco de "arrasto" na velocidade vertical para não ser infinita
-        this.velocityY *= 0.9;
+    // A variação da velocidade vertical
+    this.velocityY += pitchInfluence + (lift - gravityForce);
 
-        // Aplicar movimentos
-        this.mesh.position.y += this.velocityY;
-        this.mesh.translateZ(this.speed);
+    // Amortecimento para não acelerar infinitamente no vácuo
+    this.velocityY *= 0.95;
 
-        // 4. ANIMAÇÃO DA HÉLICE
-        if (this.propeller) {
-            this.propeller.rotation.z += (this.speed + 0.1) * 0.8;
-        }
+    // Aplicar transformações
+    this.mesh.position.y += this.velocityY;
+    this.mesh.translateZ(this.speed);
 
-        // 5. COLISÃO SOLO
-        const minHeight = 0.6;
-        if (this.mesh.position.y < minHeight) {
-            // Se cair com muita velocidade vertical, crash
-            if (this.velocityY < -0.15 || this.speed > 1.5) {
-                this._handleGroundCollision();
-            } else {
-                this.mesh.position.y = minHeight;
-                this.velocityY = 0;
-                this.pitch *= 0.5;
-                this.roll *= 0.5;
-            }
-        }
+    // 4. ANIMAÇÃO DA HÉLICE
+    if (this.propeller) {
+        this.propeller.rotation.z += (this.speed + 0.1) * 0.8;
     }
 
+    // 5. SOLO
+    const minHeight = 0.6;
+    if (this.mesh.position.y < minHeight) {
+        if (this.velocityY < -0.1 || this.speed > 1.5) {
+            this._handleGroundCollision();
+        } else {
+            this.mesh.position.y = minHeight;
+            this.velocityY = 0;
+            this.pitch *= 0.5;
+            this.roll *= 0.5;
+        }
+    }
+}
     _handleGroundCollision() {
         console.warn("💥 CRASH!");
         this._resetPlane();
