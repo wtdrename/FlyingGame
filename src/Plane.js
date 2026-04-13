@@ -69,27 +69,26 @@ export CLass PLane {
 
     // O coração da física - corre a cada frame (60fps)
 update(keys) {
-        // 1. MOTOR E ACELERAÇÃO (Recalibrado para ser mais potente)
-        if (keys['w'] || keys['W']) this.speed += 0.007; // Aceleração mais rápida
-        if (keys['s'] || keys['S']) this.speed -= 0.015; // Travão mais eficaz
+        // 1. MOTOR E VELOCIDADE
+        if (keys['w'] || keys['W']) this.speed += 0.008;
+        if (keys['s'] || keys['S']) this.speed -= 0.015;
         
-        // Atrito natural do ar (faz a velocidade baixar lentamente se não acelerares)
-        this.speed *= 0.998; 
+        // Atrito mínimo para manter o planeio
+        this.speed *= 0.999; 
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 2. ANIMAÇÃO DA HÉLICE
+        // 2. HÉLICE
         if (this.propeller) {
             this.propeller.rotation.Z += this.speed * 0.8;
         }
 
-        // 3. CONTROLOS DE ATITUDE (Suavizados)
+        // 3. CONTROLOS (PITCH E ROLL)
         let targetPitch = 0;
         let targetRoll = 0;
-
-        if (keys['ArrowUp']) targetPitch = -0.6;   // Descer
-        if (keys['ArrowDown']) targetPitch = 0.5;  // Subir
-        if (keys['ArrowLeft']) targetRoll = 0.8;   // Inclinar Esquerda
-        if (keys['ArrowRight']) targetRoll = -0.8; // Inclinar Direita
+        if (keys['ArrowUp']) targetPitch = -0.5;
+        if (keys['ArrowDown']) targetPitch = 0.4;
+        if (keys['ArrowLeft']) targetRoll = 0.7;
+        if (keys['ArrowRight']) targetRoll = -0.7;
 
         this.pitch += (targetPitch - this.pitch) * 0.08;
         this.roll += (targetRoll - this.roll) * 0.08;
@@ -97,31 +96,30 @@ update(keys) {
         this.mesh.rotation.X = this.pitch;
         this.mesh.rotation.Z = this.roll;
 
-        // 4. FÍSICA DE VOO (Ajustada para planar melhor)
-        const liftFactor = 0.014; // Aumentado (era 0.008) para flutuar mais
-        this.gravity = 0.003;    // Diminuído (era 0.005) para ser mais leve
-
-        // Cálculo de sustentação: quanto mais rápido, mais as asas "agarram" o ar
-        // O nariz ligeiramente para cima ajuda a manter a altitude
-        const lift = this.speed * liftFactor * (1 + -this.pitch);
+        // 4. NOVA FÍSICA DE SUSTENTAÇÃO (LIFT)
+        // Criamos uma força que empurra para cima baseada APENAS na velocidade
+        // 0.0035 é o peso do avião, a sustentação tem de combater isto
+        const baseGravity = 0.0035; 
+        const liftCapacity = 0.006; // O quanto as asas são "fortes"
         
-        if (this.speed > 0.4) {
-            this.velocityY += (lift - this.gravity);
-        } else {
-            this.velocityY -= this.gravity; // Sem velocidade, o avião cai
-        }
+        // Sustentação proporcional à velocidade
+        const lift = this.speed * liftCapacity;
 
-        // Simular arrasto (perder velocidade ao subir muito inclinado)
-        if (this.pitch > 0.2) this.speed *= 0.99;
+        // Se a velocidade for alta, o lift anula a gravidade e o avião sobe sozinho
+        // Se for baixa, a gravidade ganha e ele desce
+        this.velocityY += (lift - baseGravity);
 
-        // Aplicar movimentos finais
+        // Influência do Nariz (Pitch) na altitude:
+        // Puxar o nariz para cima (pitch > 0) dá um bónus extra de subida
+        this.velocityY += this.pitch * this.speed * 0.01;
+
+        // Estabilizador vertical: impede que o avião acelere infinitamente para cima ou baixo
+        this.velocityY *= 0.92;
+
+        // 5. MOVIMENTO E COLISÃO
         this.mesh.position.Y += this.velocityY;
         this.mesh.translateZ(this.speed);
 
-        // Limitar a descida/subida para não ser infinita
-        this.velocityY *= 0.95;
-
-        // 5. DETEÇÃO DE SOLO
         if (this.mesh.position.Y < 0.6) {
             this._handleGroundCollision();
         }
