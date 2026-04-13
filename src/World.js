@@ -12,16 +12,13 @@ export class World {
     }
 
     _setupLights() {
-        // Luz ambiente para garantir que nada fica totalmente preto
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         this.scene.add(ambientLight);
 
-        // Luz direcional (o Sol) para criar sombras
         this.sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
         this.sunLight.position.set(50, 100, 50);
         this.sunLight.castShadow = true;
         
-        // Otimização de Sombras para performance
         this.sunLight.shadow.mapSize.width = 2048;
         this.sunLight.shadow.mapSize.height = 2048;
         this.sunLight.shadow.camera.near = 0.5;
@@ -46,7 +43,6 @@ export class World {
     }
 
     _createRunway() {
-        // Asfalto da pista
         const runwayGeo = new THREE.PlaneGeometry(30, 2000);
         const runwayMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
         const runway = new THREE.Mesh(runwayGeo, runwayMat);
@@ -56,8 +52,7 @@ export class World {
         runway.receiveShadow = true;
         this.scene.add(runway);
 
-        // Linhas centrais da pista para referência de velocidade
-        for(let i=0; i<20; i++) {
+        for(let i = 0; i < 20; i++) {
             const lineGeo = new THREE.PlaneGeometry(1, 40);
             const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             const line = new THREE.Mesh(lineGeo, lineMat);
@@ -65,46 +60,47 @@ export class World {
             line.position.set(0, 0.12, -(i * 100));
             this.scene.add(line);
         }
-    }// ... dentro da classe World em _createForest()
-// ... dentro da classe World em _createForest()
-_createForest() {
-    const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
-    const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-    const leavesGeo = new THREE.ConeGeometry(3, 10, 8);
-    const leavesMat = new THREE.MeshPhongMaterial({ color: 0x117711 });
-
-    const instancedTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, this.numTrees);
-    const instancedLeaves = new THREE.InstancedMesh(leavesGeo, leavesMat, this.numTrees);
-    
-    instancedTrunks.castShadow = true;
-    instancedLeaves.castShadow = true;
-
-    const dummy = new THREE.Object3D();
-    const range = 2000; // Aumentei o range para espalhar mais as árvores
-
-    for (let i = 0; i < this.numTrees; i++) {
-        let x, z;
-        // Garante que as árvores não nasçam no meio da pista
-        do {
-            x = (Math.random() - 0.5) * range;
-            z = (Math.random() - 0.5) * range;
-        } while (Math.abs(x) < 40 && z < 200 && z > -1500);
-
-        const scaleY = 0.8 + Math.random() * 0.4;
-
-        // Tronco
-        dummy.position.set(x, 2 * scaleY, z);
-        dummy.scale.set(1, scaleY, 1);
-        dummy.updateMatrix();
-        instancedTrunks.setMatrixAt(i, dummy.matrix);
-
-        // Folhas (posicionadas acima do tronco)
-        dummy.position.set(x, (4 * scaleY) + 2, z);
-        dummy.scale.set(1, 1, 1); 
-        dummy.updateMatrix();
-        instancedLeaves.setMatrixAt(i, dummy.matrix);
     }
 
-    this.scene.add(instancedTrunks);
-    this.scene.add(instancedLeaves);
-}
+    _createForest() {
+        const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
+        const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        const leavesGeo = new THREE.ConeGeometry(3, 10, 8);
+        const leavesMat = new THREE.MeshPhongMaterial({ color: 0x117711 });
+
+        const instancedTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, this.numTrees);
+        const instancedLeaves = new THREE.InstancedMesh(leavesGeo, leavesMat, this.numTrees);
+        
+        instancedTrunks.castShadow = true;
+        instancedLeaves.castShadow = true;
+
+        const dummy = new THREE.Object3D();
+        const range = 2000;
+
+        for (let i = 0; i < this.numTrees; i++) {
+            let x, z;
+            // Loop para evitar árvores na pista
+            do {
+                x = (Math.random() - 0.5) * range;
+                z = (Math.random() - 0.5) * range;
+            } while (Math.abs(x) < 40 && z < 200 && z > -1500);
+
+            const scaleY = 0.8 + Math.random() * 0.4;
+
+            // Posicionar Tronco
+            dummy.position.set(x, 2 * scaleY, z);
+            dummy.scale.set(1, scaleY, 1);
+            dummy.updateMatrix();
+            instancedTrunks.setMatrixAt(i, dummy.matrix);
+
+            // Posicionar Folhas
+            dummy.position.set(x, (4 * scaleY) + 2, z);
+            dummy.scale.set(1, 1, 1); 
+            dummy.updateMatrix();
+            instancedLeaves.setMatrixAt(i, dummy.matrix);
+        }
+
+        this.scene.add(instancedTrunks);
+        this.scene.add(instancedLeaves);
+    }
+} // <--- ESTA CHAVE FECHA A CLASSE (Crítico!)
