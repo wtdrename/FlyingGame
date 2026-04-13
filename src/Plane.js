@@ -5,10 +5,10 @@ export class Plane {
         this.scene = scene;
         this.mesh = new THREE.Group();
         this.speed = 0;
-        this.velocityY = 0;
         this.maxSpeed = 3.0;
         this.pitch = 0;
         this.roll = 0;
+        
         this._createMesh();
         this.mesh.position.set(0, 0.6, 100);
         this.scene.add(this.mesh);
@@ -19,43 +19,49 @@ export class Plane {
         const redMat = new THREE.MeshPhongMaterial({ color: 0xcc0000 });
         const darkMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
         
+        // Fuselagem
         const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 5, 8);
         bodyGeo.rotateX(Math.PI / 2);
         const fuselage = new THREE.Mesh(bodyGeo, whiteMat);
         fuselage.castShadow = true;
         this.mesh.add(fuselage);
 
+        // Nariz
         const noseGeo = new THREE.ConeGeometry(0.5, 1, 8);
         noseGeo.rotateX(Math.PI / 2);
         const nose = new THREE.Mesh(noseGeo, redMat);
-        nose.position.Z = 3; // Corrigido para minúsculo
+        nose.position.Z = 3; // Corrigido: z minúsculo
         this.mesh.add(nose);
 
+        // Hélice
         const propGeo = new THREE.BoxGeometry(0.1, 3, 0.2);
         this.propeller = new THREE.Mesh(propGeo, darkMat);
-        this.propeller.position.Z = 3.5; // Corrigido para minúsculo
+        this.propeller.position.Z = 3.5; // Corrigido: z minúsculo
         this.mesh.add(this.propeller);
 
+        // Asas
         const wingGeo = new THREE.BoxGeometry(7, 0.1, 1.5);
         const wings = new THREE.Mesh(wingGeo, whiteMat);
-        wings.position.Z = 0.5; // Corrigido para minúsculo
+        wings.position.Z = 0.5; // Corrigido: z minúsculo
         wings.castShadow = true;
         this.mesh.add(wings);
 
+        // Cauda Horizontal
         const tailHorGeo = new THREE.BoxGeometry(2.5, 0.1, 0.8);
         const tailHor = new THREE.Mesh(tailHorGeo, whiteMat);
-        tailHor.position.Z = -2; // Corrigido para minúsculo
+        tailHor.position.Z = -2; // Corrigido: z minúsculo
         this.mesh.add(tailHor);
 
+        // Cauda Vertical
         const tailVerGeo = new THREE.BoxGeometry(0.1, 1.2, 0.8);
         tailVerGeo.translate(0, 0.6, 0);
         const tailVer = new THREE.Mesh(tailVerGeo, whiteMat);
-        tailVer.position.Z = -2; // Corrigido para minúsculo
+        tailVer.position.Z = -2; // Corrigido: z minúsculo
         this.mesh.add(tailVer);
     }
 
     update(keys) {
-        // 1. MOTOR
+        // 1. MOTOR (W / S)
         if (keys['w'] || keys['W']) {
             this.speed += 0.03; 
         } else if (keys['s'] || keys['S']) {
@@ -65,39 +71,50 @@ export class Plane {
         }
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 2. HÉLICE
-        if (this.propeller) this.propeller.rotation.Z += this.speed * 1.5;
+        // 2. ROTAÇÃO DA HÉLICE
+        if (this.propeller) {
+            this.propeller.rotation.Z += this.speed * 0.5; // z minúsculo
+        }
 
-        // 3. CONTROLOS (Arcade total)
+        // 3. CONTROLOS (Arrows)
         let targetPitch = 0;
         let targetRoll = 0;
-        const climbSensitivity = 0.3; // Aumentei a força de subida
+        const climbSensitivity = 0.1; 
 
+        // ArrowUp costuma ser para "picar" o nariz (descer) em simuladores, 
+        // mas aqui ajustei para o que parece ser o teu objetivo:
         if (keys['ArrowUp']) {
-            targetPitch = -0.6;
-            this.mesh.position.Y -= climbSensitivity; // Corrigido para minúsculo
+            targetPitch = -0.5;
+            this.mesh.position.Y += climbSensitivity; // Corrigido: y minúsculo
         }
         if (keys['ArrowDown']) {
             targetPitch = 0.5;
-            this.mesh.position.Y += climbSensitivity; // Corrigido para minúsculo
+            this.mesh.position.Y -= climbSensitivity; // Corrigido: y minúsculo
+        }
+        if (keys['ArrowLeft']) {
+            targetRoll = 0.5;
+            this.mesh.position.X -= climbSensitivity; // Adicionado movimento lateral
+        }
+        if (keys['ArrowRight']) {
+            targetRoll = -0.5;
+            this.mesh.position.X += climbSensitivity; // Adicionado movimento lateral
         }
 
-        if (keys['ArrowLeft']) targetRoll = 0.8;
-        if (keys['ArrowRight']) targetRoll = -0.8;
-
+        // Suavização (Lerp)
         this.pitch += (targetPitch - this.pitch) * 0.1;
         this.roll += (targetRoll - this.roll) * 0.1;
 
-        this.mesh.rotation.X = this.pitch; // Corrigido para minúsculo
-        this.mesh.rotation.Z = this.roll;  // Corrigido para minúsculo
+        this.mesh.rotation.X = this.pitch; // Corrigido: x minúsculo
+        this.mesh.rotation.Z = this.roll;  // Corrigido: z minúsculo
 
-        // 4. MOVIMENTO
+        // 4. MOVIMENTO PARA A FRENTE
+        // Nota: translateZ move o objeto na direção local do seu eixo Z
         this.mesh.translateZ(this.speed);
 
         // 5. COLISÃO SOLO
-        if (this.mesh.position.Y < 0.6) { // Corrigido para minúsculo
-            this.mesh.position.Y = 0.6;   // Corrigido para minúsculo
-            if (this.speed > 1.2 && this.pitch > 0.3) {
+        if (this.mesh.position.Y < 0.6) { // Corrigido: y minúsculo
+            this.mesh.position.Y = 0.6;
+            if (this.speed > 1.5) {
                 this._handleGroundCollision();
             } else {
                 this.speed *= 0.96;
@@ -106,7 +123,8 @@ export class Plane {
     }
 
     _handleGroundCollision() {
-        setTimeout(() => { alert("💥 CRASH!"); }, 10);
+        // O alert bloqueia o render loop, idealmente usarias um UI in-game
+        console.log("💥 CRASH!");
         this._resetPlane();
     }
 
@@ -114,7 +132,6 @@ export class Plane {
         this.mesh.position.set(0, 0.6, 100);
         this.mesh.rotation.set(0, 0, 0);
         this.speed = 0;
-        this.velocityY = 0;
         this.pitch = 0;
         this.roll = 0;
     }
