@@ -66,14 +66,12 @@ export class World {
             this.scene.add(line);
         }
     }
-
-    _createForest() {
+_createForest() {
         const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
         const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
         const leavesGeo = new THREE.ConeGeometry(3, 10, 8);
         const leavesMat = new THREE.MeshPhongMaterial({ color: 0x117711 });
 
-        // Instanciação: Desenha 2000 árvores com o custo de apenas uma
         const instancedTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, this.numTrees);
         const instancedLeaves = new THREE.InstancedMesh(leavesGeo, leavesMat, this.numTrees);
         
@@ -83,24 +81,25 @@ export class World {
         const dummy = new THREE.Object3D();
         const range = 1000;
 
-        // CORREÇÃO: let i = 0 (minúsculo) para condizer com o resto do loop
+        // CORREÇÃO: 'i' minúsculo em todo o lado para evitar loop infinito
         for (let i = 0; i < this.numTrees; i++) {
             let x, z;
             do {
                 x = (Math.random() - 0.5) * range * 2;
                 z = (Math.random() - 0.5) * range * 2;
-            } while (Math.abs(x) < 40 && z < 200 && z > -1200); // Evita árvores na pista
+            } while (Math.abs(x) < 40 && z < 200 && z > -1200);
 
             const scaleY = 0.8 + Math.random() * 0.4;
 
-            // Posicionar o Tronco
-            dummy.position.set(x, 2 * scaleY, z);
-            dummy.scale.set(1, scaleY, 1);
+            // Posicionar o Tronco - Usando aspas contra o teu editor
+            dummy['position'].set(x, 2 * scaleY, z);
+            dummy['scale'].set(1, scaleY, 1);
             dummy.updateMatrix();
             instancedTrunks.setMatrixAt(i, dummy.matrix);
 
-            // Posicionar as Folhas (no topo do tronco)
-            dummy.position.set(x, (4 * scaleY) + 4, z);
+            // Posicionar as Folhas
+            dummy['position'].set(x, (4 * scaleY) + 4, z);
+            dummy['scale'].set(1, 1, 1); // Reset scale para as folhas não deformarem
             dummy.updateMatrix();
             instancedLeaves.setMatrixAt(i, dummy.matrix);
         }
@@ -108,4 +107,3 @@ export class World {
         this.scene.add(instancedTrunks);
         this.scene.add(instancedLeaves);
     }
-}
