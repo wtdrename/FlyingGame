@@ -56,15 +56,13 @@ export class Plane {
         this.mesh.add(tailVer);
     }
 update(keys) {
-    // 1. MOTOR (Sem atrito automático, apenas 'S' abranda)
-    if (keys['w'] || keys['W']) {
-        this.speed += 0.01;
-    } else if (keys['s'] || keys['S']) {
-        this.speed -= 0.02;
-    }
+    // 1. MOTOR (Mantém a velocidade a menos que trave)
+    if (keys['w'] || keys['W']) this.speed += 0.01;
+    else if (keys['s'] || keys['S']) this.speed -= 0.02;
+    
     this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-    // 2. ATITUDE
+    // 2. ATITUDE (Pitch e Roll)
     let targetPitch = 0;
     let targetRoll = 0;
     if (keys['ArrowUp']) targetPitch = -0.5;
@@ -79,45 +77,54 @@ update(keys) {
     this.mesh.rotation.z = this.roll;
     this.mesh.rotation.y -= this.roll * 0.02;
 
-    // 3. FÍSICA DE VOO (O SEGREDO ESTÁ AQUI)
+    // 3. FÍSICA DE VOO E QUEDA LIVRE (O MOTOR DA QUEDA)
     
-    // Gravidade é uma força constante para baixo
-    const gravityForce = 0.015; 
+    // Constantes físicas
+    const gravity = 0.02;          // Força da gravidade (puxa sempre para baixo)
+    const stallSpeed = 0.5;        // Velocidade abaixo da qual o avião cai (Estol)
     
-    // Lift (Sustentação) depende da velocidade. 
-    // Se speed for 0, lift é 0.
-    const liftThreshold = 0.8; // Velocidade mínima para manter voo nivelado
-    const lift = (this.speed / liftThreshold) * gravityForce;
+    // Cálculo de Sustentação (Lift)
+    // Se speed for 0, o lift é 0. Se speed for > 1.0, o lift vence a gravidade.
+    let lift = this.speed * 0.02; 
 
-    // Se o nariz está para cima (pitch > 0), ganhamos subida baseado na velocidade
-    // Se a velocidade for baixa, o pitch não ajuda nada
-    const pitchInfluence = this.pitch * this.speed * 0.05;
+    // Se o avião estiver muito inclinado para cima, ele perde velocidade mais rápido (arrasto induzido)
+    if (this.pitch > 0.2) this.speed -= 0.002;
 
-    // A variação da velocidade vertical
-    this.velocityY += pitchInfluence + (lift - gravityForce);
+    // Se a velocidade for menor que a de estol, o controle de Pitch (subida) falha
+    let effectivePitch = this.pitch;
+    if (this.speed < stallSpeed) {
+        effectivePitch = -0.2; // O nariz "pesa" e cai sozinho se não houver velocidade
+        lift *= 0.5;           // Perde metade da sustentação imediatamente
+    }
 
-    // Amortecimento para não acelerar infinitamente no vácuo
-    this.velocityY *= 0.95;
+    // Aplicação da Velocidade Vertical (Y)
+    // A subida depende de: (Inclinação do Nariz * Velocidade) + (Sustentação - Gravidade)
+    this.velocityY += (effectivePitch * this.speed * 0.04) + (lift - gravity);
 
-    // Aplicar transformações
+    // Atrito do ar vertical (impede que ele caia a velocidades infinitas)
+    this.velocityY *= 0.96;
+
+    // 4. APLICAR MOVIMENTO NO MUNDO
     this.mesh.position.y += this.velocityY;
     this.mesh.translateZ(this.speed);
 
-    // 4. ANIMAÇÃO DA HÉLICE
+    // 5. ANIMAÇÃO DA HÉLICE
     if (this.propeller) {
         this.propeller.rotation.z += (this.speed + 0.1) * 0.8;
     }
 
-    // 5. SOLO
-    const minHeight = 0.6;
-    if (this.mesh.position.y < minHeight) {
-        if (this.velocityY < -0.1 || this.speed > 1.5) {
+    // 6. COLISÃO COM O SOLO
+    const ground = 0.6;
+    if (this.mesh.position.y < ground) {
+        // Se a queda vertical for forte (velocityY negativa), explode
+        if (this.velocityY < -0.05) {
             this._handleGroundCollision();
         } else {
-            this.mesh.position.y = minHeight;
+            // Pouso ou taxi
+            this.mesh.position.y = ground;
             this.velocityY = 0;
-            this.pitch *= 0.5;
-            this.roll *= 0.5;
+            this.pitch *= 0.8;
+            this.roll *= 0.8;
         }
     }
 }
