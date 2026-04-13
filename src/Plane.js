@@ -124,32 +124,46 @@ update(keys) {
             this._handleGroundCollision();
         }
     }
-    _handleGroundCollision() {
+_handleGroundCollision() {
         // Verifica se o impacto foi demasiado violento
-        // Se a velocidade vertical for alta ou o avião estiver muito inclinado lateralmente
+        // Se a velocidade de queda (velocityY) for muito negativa ou o avião estiver torto
         if (this.velocityY < -0.15 || Math.abs(this.roll) > 0.3) {
-            alert("💥 CRASH! Perdeste o controlo no impacto.");
+            // Pequeno truque: usamos um setTimeout para o alert não bloquear 
+            // o loop do Three.js antes de limparmos a posição
+            setTimeout(() => {
+                alert("💥 CRASH! O avião foi recuperado para a pista.");
+            }, 10);
+            
             this._resetPlane();
         } else {
-            // Aterragem suave ou deslocação na pista (Taxiing)
+            // Aterragem suave ou Taxiing
             this.mesh.position.Y = 0.6;
             this.velocityY = 0;
-            this.mesh.rotation.X = 0; // O chão endireita o nariz
+            this.mesh.rotation.X = 0; 
             
-            // Reduz inclinação lateral gradualmente no chão
+            // Endireita as asas gradualmente se estiver no chão
             if (Math.abs(this.roll) < 0.1) this.mesh.rotation.Z = 0;
             
-            // Atrito do solo (faz o avião parar se não acelerares)
+            // Atrito do solo (trava o avião se não acelerar)
             this.speed *= 0.99;
         }
     }
 
     _resetPlane() {
+        // 1. Reposicionar o avião (Início da pista e ligeiramente acima do solo)
+        this.mesh.position.set(0, 0.6, 100);
+        
+        // 2. FORÇAR ROTAÇÃO ZERO (Limpar a inclinação do crash no objeto 3D)
+        this.mesh.rotation.set(0, 0, 0);
+        
+        // 3. LIMPAR VARIÁVEIS DE CONTROLO (Impedir que o erro continue)
         this.speed = 0;
         this.velocityY = 0;
-        this.mesh.position.set(0, 0.6, 100);
-        this.mesh.rotation.set(0, 0, 0);
-        this.pitch = 0;
-        this.roll = 0;
+        this.pitch = 0; // MUITO IMPORTANTE: Resetar o nariz
+        this.roll = 0;  // MUITO IMPORTANTE: Resetar as asas
+        
+        // 4. Parar qualquer movimento residual da câmara ou física
+        targetPitch = 0; // Se usares variáveis globais de target, limpa-as também
+        targetRoll = 0;
     }
 }
