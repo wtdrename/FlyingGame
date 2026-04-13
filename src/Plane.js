@@ -19,14 +19,13 @@ export class Plane {
     }
 
     _createMesh() {
-        // Materiais reutilizáveis
         const whiteMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, flatShading: true });
         const redMat = new THREE.MeshPhongMaterial({ color: 0xcc0000, flatShading: true });
         const darkMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
         
-        // Fuselagem (Corpo)
+        // Fuselagem
         const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 5, 8);
-        bodyGeo.rotateX(Math.PI / 2); // Alinha o cilindro com o eixo Z
+        bodyGeo.rotateX(Math.PI / 2);
         const fuselage = new THREE.Mesh(bodyGeo, whiteMat);
         fuselage.castShadow = true;
         fuselage.receiveShadow = true;
@@ -52,93 +51,77 @@ export class Plane {
         wings.castShadow = true;
         this.mesh.add(wings);
 
-        // Estabilizador Horizontal (Cauda)
+        // Cauda
         const tailHor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.8), whiteMat);
         tailHor.position.z = -2;
         this.mesh.add(tailHor);
 
-        // Estabilizador Vertical (Leme)
         const tailVer = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 0.8), whiteMat);
-        // Movemos a geometria para cima para a base ficar no corpo do avião
         tailVer.geometry.translate(0, 0.6, 0);
         tailVer.position.z = -2;
         this.mesh.add(tailVer);
     }
 
-    /**
-     * @param {Object} keys - Objeto contendo o estado do teclado
-     * @param {number} delta - Tempo entre frames (opcional, para suavidade)
-     */
-    update(keys, delta = 0.016) {
-        // 1. ACELERAÇÃO (W / S)
-        if (keys['w'] || keys['W'] || keys['ArrowUp'] && keys['Shift']) {
-            this.speed += 0.05;
+    update(keys) {
+        // 1. ACELERAÇÃO
+        if (keys['w'] || keys['W']) {
+            this.speed += 0.01;
         } else if (keys['s'] || keys['S']) {
-            this.speed -= 0.05;
+            this.speed -= 0.02;
         } else {
-            // Atrito natural (Glide)
-            this.speed *= 0.98;
+            this.speed *= 0.99; // Atrito do ar
         }
-
-        // Limita a velocidade entre 0 e o máximo
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 2. CONTROLES DE DIREÇÃO
-// ... dentro de update(keys)
-// 2. CONTROLOS DE ATITUDE (Estilo Simulador Real)
-let targetPitch = 0;
-let targetRoll = 0;
+        // 2. CONTROLOS DE ATITUDE (Simulador Real)
+        let targetPitch = 0;
+        let targetRoll = 0;
 
-if (keys['ArrowUp']) targetPitch = -0.5;    // Cima = Descer
-if (keys['ArrowDown']) targetPitch = 0.5;   // Baixo = Subir
-if (keys['ArrowLeft']) targetRoll = 0.7;    // Esquerda
-if (keys['ArrowRight']) targetRoll = -0.7;  // Direita
+        if (keys['ArrowUp']) targetPitch = -0.5;    // Nariz para baixo
+        if (keys['ArrowDown']) targetPitch = 0.5;   // Nariz para cima
+        if (keys['ArrowLeft']) targetRoll = 0.7;    // Inclinar esquerda
+        if (keys['ArrowRight']) targetRoll = -0.7;  // Inclinar direita
 
-this.pitch += (targetPitch - this.pitch) * 0.1;
-this.roll += (targetRoll - this.roll) * 0.1;
-
-this.mesh.rotation.x = this.pitch;
-this.mesh.rotation.z = this.roll;
-// Yaw automático ao inclinar
-this.mesh.rotation.y -= this.roll * 0.02;
-
-        // Interpolação para movimentos suaves (Lerp)
+        // Suavização dos movimentos (Lerp)
         this.pitch += (targetPitch - this.pitch) * 0.1;
         this.roll += (targetRoll - this.roll) * 0.1;
 
+        // Aplicar rotações ao mesh
         this.mesh.rotation.x = this.pitch;
         this.mesh.rotation.z = this.roll;
         
-        // Adiciona um pouco de Yaw (rotação no eixo Y) baseado no Roll para fazer a curva
-        this.mesh.rotation.y -= this.roll * 0.05;
+        // Yaw (Giro horizontal) baseado na inclinação das asas
+        this.mesh.rotation.y -= this.roll * 0.02;
 
-        // 3. MOVIMENTO PARA FRENTE
-        // TranslateZ move o objeto na direção local em que ele está apontando
+        // 3. MOVIMENTO VERTICAL (Subir/Descer)
+        // O avião sobe se tiver velocidade e inclinação positiva
+        if (this.speed > 0.5) {
+            this.mesh.position.y += this.pitch * this.speed * 0.1;
+        }
+
+        // 4. MOVIMENTO PARA FRENTE
         this.mesh.translateZ(this.speed);
 
-        // 4. ANIMAÇÃO DA HÉLICE
+        // 5. ANIMAÇÃO DA HÉLICE
         if (this.propeller) {
-            // A hélice gira proporcional à velocidade + uma rotação mínima
             this.propeller.rotation.z += (this.speed + 0.2) * 0.8;
         }
 
-        // 5. SISTEMA DE COLISÃO COM SOLO
+        // 6. COLISÃO SOLO
         const minHeight = 0.6;
         if (this.mesh.position.y < minHeight) {
-            
-            // Se estiver muito rápido ou muito inclinado ao tocar o solo: CRASH
             if (this.speed > 1.2 || Math.abs(this.pitch) > 0.2) {
                 this._handleGroundCollision();
             } else {
-                // Pouso suave ou taxiando
                 this.mesh.position.y = minHeight;
-                this.pitch = 0; // Alinha o nariz com o chão
+                this.pitch *= 0.5; // O chão estabiliza o nariz
+                this.roll *= 0.5;  // O chão estabiliza as asas
             }
         }
     }
 
     _handleGroundCollision() {
-        console.warn("💥 CRASH! O avião foi destruído.");
+        console.warn("💥 CRASH!");
         this._resetPlane();
     }
 
