@@ -61,66 +61,51 @@ export class Plane {
     }
 
     update(keys) {
-        // 1. MOTOR (W / S)
-        if (keys['w'] || keys['W']) {
-            this.speed += 0.03; 
-        } else if (keys['s'] || keys['S']) {
-            this.speed -= 0.05;
-        } else {
-            this.speed *= 0.99; 
-        }
-        this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
+    // 1. INPUT DE VELOCIDADE (W / S)
+    // Usamos .toLowerCase() para evitar problemas com Caps Lock
+    if (keys['w'] || keys['W']) this.speed += 0.03;
+    else if (keys['s'] || keys['S']) this.speed -= 0.05;
+    else this.speed *= 0.99; // Atrito/Drag
 
-        // 2. ROTAÇÃO DA HÉLICE
-        if (this.propeller) {
-            this.propeller.rotation.Z += this.speed * 0.5; // z minúsculo
-        }
+    this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 3. CONTROLOS (Arrows)
-        let targetPitch = 0;
-        let targetRoll = 0;
-        const climbSensitivity = 0.1; 
+    // 2. CONTROLOS DE DIREÇÃO (Arrows)
+    let targetPitch = 0;
+    let targetRoll = 0;
 
-        // ArrowUp costuma ser para "picar" o nariz (descer) em simuladores, 
-        // mas aqui ajustei para o que parece ser o teu objetivo:
-        if (keys['ArrowUp']) {
-            targetPitch = -0.5;
-            this.mesh.position.Y += climbSensitivity; // Corrigido: y minúsculo
-        }
-        if (keys['ArrowDown']) {
-            targetPitch = 0.5;
-            this.mesh.position.Y -= climbSensitivity; // Corrigido: y minúsculo
-        }
-        if (keys['ArrowLeft']) {
-            targetRoll = 0.5;
-            this.mesh.position.X -= climbSensitivity; // Adicionado movimento lateral
-        }
-        if (keys['ArrowRight']) {
-            targetRoll = -0.5;
-            this.mesh.position.X += climbSensitivity; // Adicionado movimento lateral
-        }
-
-        // Suavização (Lerp)
-        this.pitch += (targetPitch - this.pitch) * 0.1;
-        this.roll += (targetRoll - this.roll) * 0.1;
-
-        this.mesh.rotation.X = this.pitch; // Corrigido: x minúsculo
-        this.mesh.rotation.Z = this.roll;  // Corrigido: z minúsculo
-
-        // 4. MOVIMENTO PARA A FRENTE
-        // Nota: translateZ move o objeto na direção local do seu eixo Z
-        this.mesh.translateZ(this.speed);
-
-        // 5. COLISÃO SOLO
-        if (this.mesh.position.Y < 0.6) { // Corrigido: y minúsculo
-            this.mesh.position.Y = 0.6;
-            if (this.speed > 1.5) {
-                this._handleGroundCollision();
-            } else {
-                this.speed *= 0.96;
-            }
-        }
+    // Seta para CIMA -> O avião sobe (Pitch Negativo no Three.js inclina o nariz para cima se o modelo estiver correto)
+    if (keys['ArrowUp']) {
+        targetPitch = -0.5; 
+        this.mesh.position.Y += 0.1 * (this.speed + 0.1); // Só sobe se tiver alguma velocidade
     }
+    if (keys['ArrowDown']) {
+        targetPitch = 0.5;
+        this.mesh.position.Y -= 0.1 * (this.speed + 0.1);
+    }
+    if (keys['ArrowLeft']) targetRoll = 0.6;
+    if (keys['ArrowRight']) targetRoll = -0.6;
+
+    // Suavização das rotações
+    this.pitch += (targetPitch - this.pitch) * 0.1;
+    this.roll += (targetRoll - this.roll) * 0.1;
+
+    // Aplicar rotações (Eixos minúsculos!)
+    this.mesh.rotation.X = this.pitch;
+    this.mesh.rotation.Z = this.roll;
+
+    // 3. MOVIMENTO PARA A FRENTE
+    // IMPORTANTE: Se o avião andar para trás, muda para -this.speed
+    this.mesh.translateZ(this.speed); 
+
+    // 4. HÉLICE
+    if (this.propeller) this.propeller.rotation.Z += this.speed * 0.8;
+
+    // 5. CHÃO
+    if (this.mesh.position.Y < 0.6) {
+        this.mesh.position.Y = 0.6;
+        if (this.speed > 1.5) this._handleGroundCollision();
+    }
+}
 
     _handleGroundCollision() {
         // O alert bloqueia o render loop, idealmente usarias um UI in-game
