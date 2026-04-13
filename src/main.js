@@ -45,14 +45,12 @@ function animate() {
 }
 
 function updateCamera() {
-    // Define onde a câmara deve estar relativa ao avião (atrás e acima)
-    const relativeCameraOffset = new THREE.Vector3(0, 4, -15);
+    const relativeCameraOffset = new THREE.Vector3(0, 5, -15);
     
-    // Converte essa posição relativa para coordenadas do mundo real baseadas no avião
+    // Aplica a rotação e posição do avião ao offset da câmera
     const cameraOffset = relativeCameraOffset.applyMatrix4(plane.mesh.matrixWorld);
     
-    // Interpolação Linear (lerp) para a câmara não ser rígida demais
-    camera.position.lerp(cameraOffset, 0.2);
+    camera.position.lerp(cameraOffset, 0.1); // 0.1 para uma câmera mais "suave" e cinematográfica
     camera.lookAt(plane.mesh.position);
 }
 
