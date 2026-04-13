@@ -65,45 +65,45 @@ export class World {
             line.position.set(0, 0.12, -(i * 100));
             this.scene.add(line);
         }
-    }
+    }// ... dentro da classe World em _createForest()
 _createForest() {
-        const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
-        const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-        const leavesGeo = new THREE.ConeGeometry(3, 10, 8);
-        const leavesMat = new THREE.MeshPhongMaterial({ color: 0x117711 });
+    const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
+    const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+    const leavesGeo = new THREE.ConeGeometry(3, 10, 8);
+    const leavesMat = new THREE.MeshPhongMaterial({ color: 0x117711 });
 
-        const instancedTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, this.numTrees);
-        const instancedLeaves = new THREE.InstancedMesh(leavesGeo, leavesMat, this.numTrees);
-        
-        instancedTrunks.castShadow = true;
-        instancedLeaves.castShadow = true;
+    const instancedTrunks = new THREE.InstancedMesh(trunkGeo, trunkMat, this.numTrees);
+    const instancedLeaves = new THREE.InstancedMesh(leavesGeo, leavesMat, this.numTrees);
+    
+    instancedTrunks.castShadow = true;
+    instancedLeaves.castShadow = true;
 
-        const dummy = new THREE.Object3D();
-        const range = 1000;
+    const dummy = new THREE.Object3D();
+    const range = 2000; // Aumentei o range para espalhar mais as árvores
 
-        // CORREÇÃO: 'i' minúsculo em todo o lado para evitar loop infinito
-        for (let i = 0; i < this.numTrees; i++) {
-            let x, z;
-            do {
-                x = (Math.random() - 0.5) * range * 2;
-                z = (Math.random() - 0.5) * range * 2;
-            } while (Math.abs(x) < 40 && z < 200 && z > -1200);
+    for (let i = 0; i < this.numTrees; i++) {
+        let x, z;
+        // Garante que as árvores não nasçam no meio da pista
+        do {
+            x = (Math.random() - 0.5) * range;
+            z = (Math.random() - 0.5) * range;
+        } while (Math.abs(x) < 40 && z < 200 && z > -1500);
 
-            const scaleY = 0.8 + Math.random() * 0.4;
+        const scaleY = 0.8 + Math.random() * 0.4;
 
-            // Posicionar o Tronco - Usando aspas contra o teu editor
-            dummy['position'].set(x, 2 * scaleY, z);
-            dummy['scale'].set(1, scaleY, 1);
-            dummy.updateMatrix();
-            instancedTrunks.setMatrixAt(i, dummy.matrix);
+        // Tronco
+        dummy.position.set(x, 2 * scaleY, z);
+        dummy.scale.set(1, scaleY, 1);
+        dummy.updateMatrix();
+        instancedTrunks.setMatrixAt(i, dummy.matrix);
 
-            // Posicionar as Folhas
-            dummy['position'].set(x, (4 * scaleY) + 4, z);
-            dummy['scale'].set(1, 1, 1); // Reset scale para as folhas não deformarem
-            dummy.updateMatrix();
-            instancedLeaves.setMatrixAt(i, dummy.matrix);
-        }
-
-        this.scene.add(instancedTrunks);
-        this.scene.add(instancedLeaves);
+        // Folhas (posicionadas acima do tronco)
+        dummy.position.set(x, (4 * scaleY) + 2, z);
+        dummy.scale.set(1, 1, 1); 
+        dummy.updateMatrix();
+        instancedLeaves.setMatrixAt(i, dummy.matrix);
     }
+
+    this.scene.add(instancedTrunks);
+    this.scene.add(instancedLeaves);
+}
