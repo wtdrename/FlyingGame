@@ -84,22 +84,23 @@ export class Plane {
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
         // 2. CONTROLES DE DIREÇÃO
-        let targetPitch = 0;
-        let targetRoll = 0;
+// ... dentro de update(keys)
+// 2. CONTROLOS DE ATITUDE (Estilo Simulador Real)
+let targetPitch = 0;
+let targetRoll = 0;
 
-        // Subir/Descer (Pitch) - Invertido como em aviões reais: Seta Cima = Nariz para cima
-        if (keys['ArrowUp']) {
-            targetPitch = 0.4;
-            this.mesh.position.y += this.speed * 0.5;
-        }
-        if (keys['ArrowDown']) {
-            targetPitch = -0.4;
-            this.mesh.position.y -= this.speed * 0.5;
-        }
+if (keys['ArrowUp']) targetPitch = -0.5;    // Cima = Descer
+if (keys['ArrowDown']) targetPitch = 0.5;   // Baixo = Subir
+if (keys['ArrowLeft']) targetRoll = 0.7;    // Esquerda
+if (keys['ArrowRight']) targetRoll = -0.7;  // Direita
 
-        // Inclinação Lateral (Roll)
-        if (keys['ArrowLeft']) targetRoll = 0.6;
-        if (keys['ArrowRight']) targetRoll = -0.6;
+this.pitch += (targetPitch - this.pitch) * 0.1;
+this.roll += (targetRoll - this.roll) * 0.1;
+
+this.mesh.rotation.x = this.pitch;
+this.mesh.rotation.z = this.roll;
+// Yaw automático ao inclinar
+this.mesh.rotation.y -= this.roll * 0.02;
 
         // Interpolação para movimentos suaves (Lerp)
         this.pitch += (targetPitch - this.pitch) * 0.1;
