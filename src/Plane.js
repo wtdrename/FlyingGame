@@ -69,60 +69,61 @@ export CLass PLane {
 
     // O coração da física - corre a cada frame (60fps)
 update(keys) {
-        // 1. MOTOR (Aumentar a potência máxima e aceleração)
-        if (keys['w'] || keys['W']) this.speed += 0.01; 
-        if (keys['s'] || keys['S']) this.speed -= 0.02;
+        // 1. MOTOR ARCADE (Resposta instantânea)
+        if (keys['w'] || keys['W']) {
+            this.speed += 0.05; // Acelera muito rápido
+        } else if (keys['s'] || keys['S']) {
+            this.speed -= 0.05; // Trava muito rápido
+        } else {
+            // No modo arcade, o avião mantém a velocidade se não travares
+            this.speed *= 0.995; 
+        }
         
-        // Atrito do ar mais suave para manter a inércia
-        this.speed *= 0.999; 
-        this.speed = Math.max(0, Math.min(this.speed, 2.5)); // Aumentei maxSpeed para 2.5
+        this.speed = Math.max(0, Math.min(this.speed, 3.0)); // Velocidade máxima aumentada
 
-        // 2. ANIMAÇÃO HÉLICE
-        if (this.propeller) this.propeller.rotation.Z += this.speed * 0.8;
+        // 2. HÉLICE (Sempre a rodar rápido)
+        if (this.propeller) this.propeller.rotation.Z += this.speed * 1.5;
 
-        // 3. CONTROLOS (PITCH E ROLL)
+        // 3. CONTROLOS DIRETOS (Movem o avião, não apenas a inclinação)
         let targetPitch = 0;
         let targetRoll = 0;
-        if (keys['ArrowUp']) targetPitch = -0.5;
-        if (keys['ArrowDown']) targetPitch = 0.4;
-        if (keys['ArrowLeft']) targetRoll = 0.7;
-        if (keys['ArrowRight']) targetRoll = -0.7;
 
-        this.pitch += (targetPitch - this.pitch) * 0.08;
-        this.roll += (targetRoll - this.roll) * 0.08;
+        // Subir/Descer Direto
+        if (keys['ArrowUp']) {
+            targetPitch = -0.6;
+            this.mesh.position.Y -= this.speed * 0.4; // O avião desce mesmo
+        }
+        if (keys['ArrowDown']) {
+            targetPitch = 0.5;
+            this.mesh.position.Y += this.speed * 0.4; // O avião sobe mesmo
+        }
+
+        // Inclinação Lateral
+        if (keys['ArrowLeft']) targetRoll = 0.8;
+        if (keys['ArrowRight']) targetRoll = -0.8;
+
+        // Suavização visual apenas (para não ser robótico)
+        this.pitch += (targetPitch - this.pitch) * 0.15;
+        this.roll += (targetRoll - this.roll) * 0.15;
 
         this.mesh.rotation.X = this.pitch;
         this.mesh.rotation.Z = this.roll;
 
-        // 4. FÍSICA DE SUSTENTAÇÃO (LIFT) REFORMULADA
-        // O segredo: Lift baseado no quadrado da velocidade para ser mais potente
-        const liftPower = 0.007; 
-        const gravityConst = 0.004;
-
-        // Gerar sustentação baseada na velocidade
-        // Se speed for > 0.8, o avião já começa a querer flutuar sozinho
-        let lift = (this.speed * this.speed) * liftPower;
-
-        // Bónus de inclinação: se o nariz estiver para cima, ganha mais lift,
-        // mas só se tiver velocidade suficiente!
-        if (this.pitch > 0) {
-            lift += this.pitch * this.speed * 0.02;
-            this.speed *= 0.995; // Subir custa velocidade (troca energia por altitude)
+        // 4. MOVIMENTO PARA A FRENTE (Ignoramos gravidade se houver velocidade)
+        // Se a velocidade for mínima, ele não cai, apenas flutua
+        if (this.speed < 0.1) {
+            this.mesh.position.Y -= 0.05; // Gravidade mínima só para não ser estático
         }
 
-        // Aplicar a força vertical (Sustentação - Gravidade)
-        this.velocityY += (lift - gravityConst);
-
-        // Estabilizador: impede que o avião "vibre" ou suba descontroladamente
-        this.velocityY *= 0.94;
-
-        // 5. MOVIMENTO
-        this.mesh.position.Y += this.velocityY;
         this.mesh.translateZ(this.speed);
 
-        // 6. COLISÃO SOLO
+        // 5. COLISÃO SIMPLIFICADA
         if (this.mesh.position.Y < 0.6) {
-            this._handleGroundCollision();
+            this.mesh.position.Y = 0.6;
+            this.velocityY = 0;
+            if (this.speed > 1.5 && Math.abs(this.pitch) > 0.3) {
+                this._resetPlane(); // Só crasha se bater mesmo de bico com muita força
+            }
         }
     }
 _handleGroundCollision() {
