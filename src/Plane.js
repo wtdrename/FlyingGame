@@ -5,150 +5,142 @@ export class Plane {
         this.scene = scene;
         this.mesh = new THREE.Group();
         
-        // Propriedades de voo
-        this.speed = 0;
-        this.maxSpeed = 1.5;      // Ajustado para melhor controlo
-        this.velocityY = 0;       
-        this.pitch = 0;
-        this.roll = 0;
+        // --- PROPRIEDADES FÍSICAS ---
+        this.speed = 0;          // Velocidade de avanço
+        this.velocityY = 0;      // Velocidade vertical (subida/descida)
+        this.gravity = 0.005;    // Força da gravidade
+        this.maxSpeed = 2.0;     // Velocidade máxima permitida
         
+        // --- ATITUDE (Ângulos) ---
+        this.pitch = 0;          // Inclinação do nariz (eixo X)
+        this.roll = 0;           // Inclinação das asas (eixo Z)
+
+        // Inicialização
         this._createMesh();
-        this.mesh.position.set(0, 0.6, 0); 
+        this.mesh.position.set(0, 0.6, 100); // Posição inicial na pista
         this.scene.add(this.mesh);
     }
 
+    // Cria a parte visual do avião
     _createMesh() {
-        const whiteMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, flatShading: true });
-        const redMat = new THREE.MeshPhongMaterial({ color: 0xcc0000, flatShading: true });
-        const darkMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
-        
-        // Fuselagem
+        const whiteMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee });
+        const redMat = new THREE.MeshPhongMaterial({ color: 0xcc0000 });
+        const darkMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+
+        // 1. Fuselagem (Corpo)
         const bodyGeo = new THREE.CylinderGeometry(0.5, 0.5, 5, 8);
-        bodyGeo.rotateX(Math.PI / 2);
+        bodyGeo.rotateX(Math.PI / 2); // Deitar o cilindro
         const fuselage = new THREE.Mesh(bodyGeo, whiteMat);
         fuselage.castShadow = true;
         this.mesh.add(fuselage);
 
-        // Nariz
+        // 2. Nariz
         const noseGeo = new THREE.ConeGeometry(0.5, 1, 8);
         noseGeo.rotateX(Math.PI / 2);
         const nose = new THREE.Mesh(noseGeo, redMat);
-        nose.position.z = 3; 
+        nose.position.z = 3;
         this.mesh.add(nose);
 
-        // Hélice
+        // 3. Hélice
         const propGeo = new THREE.BoxGeometry(0.1, 3, 0.2);
         this.propeller = new THREE.Mesh(propGeo, darkMat);
-        this.propeller.position.z = 3.5; 
+        this.propeller.position.z = 3.5; // À frente do nariz
         this.mesh.add(this.propeller);
 
-        // Asas
+        // 4. Asas
         const wingGeo = new THREE.BoxGeometry(7, 0.1, 1.5);
         const wings = new THREE.Mesh(wingGeo, whiteMat);
         wings.position.z = 0.5;
         wings.castShadow = true;
         this.mesh.add(wings);
 
-        // Cauda Horizontal
-        const tailHor = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.8), whiteMat);
+        // 5. Cauda (Estabilizadores)
+        const tailHorGeo = new THREE.BoxGeometry(2.5, 0.1, 0.8);
+        const tailHor = new THREE.Mesh(tailHorGeo, whiteMat);
         tailHor.position.z = -2;
         this.mesh.add(tailHor);
 
-        // Cauda Vertical
-        const tailVer = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.2, 0.8), whiteMat);
-        tailVer.geometry.translate(0, 0.6, 0);
+        const tailVerGeo = new THREE.BoxGeometry(0.1, 1.2, 0.8);
+        tailVerGeo.translate(0, 0.6, 0);
+        const tailVer = new THREE.Mesh(tailVerGeo, whiteMat);
         tailVer.position.z = -2;
         this.mesh.add(tailVer);
     }
 
+    // O coração da física - corre a cada frame (60fps)
     update(keys) {
-        // 1. MOTOR (Aceleração e Travagem)
+        // 1. MOTOR E ACELERAÇÃO
         if (keys['w'] || keys['W']) this.speed += 0.005;
-        else if (keys['s'] || keys['S']) this.speed -= 0.01;
-        
-        // Atrito natural (o avião abranda sozinho sem motor)
-        this.speed *= 0.995;
+        if (keys['s'] || keys['S']) this.speed -= 0.01;
         this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
 
-        // 2. ATITUDE (Pitch e Roll)
+        // 2. ANIMAÇÃO DA HÉLICE
+        if (this.propeller) {
+            this.propeller.rotation.z += this.speed * 0.8;
+        }
+
+        // 3. CONTROLOS DE ATITUDE (PITCH E ROLL)
         let targetPitch = 0;
         let targetRoll = 0;
 
-        // Comandos (Invertidos como num avião real: Seta para cima = Descer)
-        if (keys['ArrowUp']) targetPitch = 0.4;
-        if (keys['ArrowDown']) targetPitch = -0.4;
-        if (keys['ArrowLeft']) targetRoll = 0.6;
-        if (keys['ArrowRight']) targetRoll = -0.6;
+        if (keys['ArrowUp']) targetPitch = -0.6;   // Empurrar manche (desce)
+        if (keys['ArrowDown']) targetPitch = 0.5;  // Puxar manche (sobe)
+        if (keys['ArrowLeft']) targetRoll = 0.8;   // Inclinar para a esquerda
+        if (keys['ArrowRight']) targetRoll = -0.8; // Inclinar para a direita
 
-        // Interpolação suave para os controlos
+        // Suavização (Interpolação Linear) para dar peso ao avião
         this.pitch += (targetPitch - this.pitch) * 0.1;
         this.roll += (targetRoll - this.roll) * 0.1;
 
         this.mesh.rotation.x = this.pitch;
         this.mesh.rotation.z = this.roll;
-        
-        // Curvatura baseada no Roll (Yawn)
-        this.mesh.rotation.y -= this.roll * (this.speed * 0.05);
 
-        // 3. FÍSICA DE VOO REVISADA
-        const gravity = 0.015;      
-        const stallSpeed = 0.4;    // Velocidade mínima para manter voo nivelado
+        // 4. CÁLCULO DE SUSTENTAÇÃO (LIFT) E GRAVIDADE
+        const liftFactor = 0.008;
+        // O avião só sobe se tiver velocidade e o nariz estiver para cima
+        const isGainingLift = this.speed > 0.6 && this.pitch > 0.1;
         
-        // Cálculo de Lift (Sustentação)
-        // Quanto mais rápido, mais lift. Se speed < 0.4, o lift será menor que a gravidade.
-        let lift = this.speed * 0.035; 
-
-        // Lógica de ESTOL (Stall)
-        if (this.speed < stallSpeed) {
-            // Se estiver muito lento, o nariz cai e a sustentação desaparece
-            this.pitch += (0.4 - this.pitch) * 0.05; 
-            lift *= 0.5;
+        if (isGainingLift) {
+            this.velocityY += (this.pitch * this.speed * liftFactor);
         }
 
-        // Subida/Descida baseada na inclinação do nariz e velocidade
-        // Se o nariz está para cima (pitch negativo no THREE), o avião sobe
-        let climbSink = -this.pitch * this.speed * 0.1;
-
-        // Aplicação da Velocidade Vertical
-        this.velocityY += (lift - gravity) + climbSink;
-
-        // Arrastar vertical (Air Resistance)
-        this.velocityY *= 0.95;
-
-        // 4. APLICAR MOVIMENTO NO MUNDO
+        this.velocityY -= this.gravity; // A gravidade puxa sempre para baixo
+        
+        // Aplicar movimentos
         this.mesh.position.y += this.velocityY;
         this.mesh.translateZ(this.speed);
 
-        // 5. ANIMAÇÃO DA HÉLICE
-        if (this.propeller) {
-            this.propeller.rotation.z += (this.speed + 0.1) * 0.8;
-        }
-
-        // 6. COLISÃO COM O SOLO
-        const ground = 0.6;
-        if (this.mesh.position.y < ground) {
-            // Se a queda for rápida, crasha
-            if (this.velocityY < -0.04) {
-                this._handleGroundCollision();
-            } else {
-                // Pouso suave ou taxiing
-                this.mesh.position.y = ground;
-                this.velocityY = 0;
-                this.pitch *= 0.9; // O chão nivela o avião
-            }
+        // 5. DETEÇÃO DE SOLO
+        if (this.mesh.position.y < 0.6) {
+            this._handleGroundCollision();
         }
     }
 
     _handleGroundCollision() {
-        console.warn("💥 CRASH! Velocidade de queda muito alta.");
-        this._resetPlane();
+        // Verifica se o impacto foi demasiado violento
+        // Se a velocidade vertical for alta ou o avião estiver muito inclinado lateralmente
+        if (this.velocityY < -0.15 || Math.abs(this.roll) > 0.3) {
+            alert("💥 CRASH! Perdeste o controlo no impacto.");
+            this._resetPlane();
+        } else {
+            // Aterragem suave ou deslocação na pista (Taxiing)
+            this.mesh.position.y = 0.6;
+            this.velocityY = 0;
+            this.mesh.rotation.x = 0; // O chão endireita o nariz
+            
+            // Reduz inclinação lateral gradualmente no chão
+            if (Math.abs(this.roll) < 0.1) this.mesh.rotation.z = 0;
+            
+            // Atrito do solo (faz o avião parar se não acelerares)
+            this.speed *= 0.99;
+        }
     }
 
     _resetPlane() {
-        this.mesh.position.set(0, 0.6, 0);
-        this.mesh.rotation.set(0, 0, 0);
         this.speed = 0;
         this.velocityY = 0;
+        this.mesh.position.set(0, 0.6, 100);
+        this.mesh.rotation.set(0, 0, 0);
         this.pitch = 0;
         this.roll = 0;
     }
