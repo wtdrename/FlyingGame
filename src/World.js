@@ -66,6 +66,7 @@ export class World {
             this.scene.add(line);
         }
     }// ... dentro da classe World em _createForest()
+// ... dentro da classe World em _createForest()
 _createForest() {
     const trunkGeo = new THREE.CylinderGeometry(0.5, 0.8, 4, 6);
     const trunkMat = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
