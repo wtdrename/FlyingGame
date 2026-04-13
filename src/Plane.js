@@ -69,18 +69,16 @@ export CLass PLane {
 
     // O coração da física - corre a cada frame (60fps)
 update(keys) {
-        // 1. MOTOR E VELOCIDADE
-        if (keys['w'] || keys['W']) this.speed += 0.008;
-        if (keys['s'] || keys['S']) this.speed -= 0.015;
+        // 1. MOTOR (Aumentar a potência máxima e aceleração)
+        if (keys['w'] || keys['W']) this.speed += 0.01; 
+        if (keys['s'] || keys['S']) this.speed -= 0.02;
         
-        // Atrito mínimo para manter o planeio
+        // Atrito do ar mais suave para manter a inércia
         this.speed *= 0.999; 
-        this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
+        this.speed = Math.max(0, Math.min(this.speed, 2.5)); // Aumentei maxSpeed para 2.5
 
-        // 2. HÉLICE
-        if (this.propeller) {
-            this.propeller.rotation.Z += this.speed * 0.8;
-        }
+        // 2. ANIMAÇÃO HÉLICE
+        if (this.propeller) this.propeller.rotation.Z += this.speed * 0.8;
 
         // 3. CONTROLOS (PITCH E ROLL)
         let targetPitch = 0;
@@ -96,30 +94,33 @@ update(keys) {
         this.mesh.rotation.X = this.pitch;
         this.mesh.rotation.Z = this.roll;
 
-        // 4. NOVA FÍSICA DE SUSTENTAÇÃO (LIFT)
-        // Criamos uma força que empurra para cima baseada APENAS na velocidade
-        // 0.0035 é o peso do avião, a sustentação tem de combater isto
-        const baseGravity = 0.0035; 
-        const liftCapacity = 0.006; // O quanto as asas são "fortes"
-        
-        // Sustentação proporcional à velocidade
-        const lift = this.speed * liftCapacity;
+        // 4. FÍSICA DE SUSTENTAÇÃO (LIFT) REFORMULADA
+        // O segredo: Lift baseado no quadrado da velocidade para ser mais potente
+        const liftPower = 0.007; 
+        const gravityConst = 0.004;
 
-        // Se a velocidade for alta, o lift anula a gravidade e o avião sobe sozinho
-        // Se for baixa, a gravidade ganha e ele desce
-        this.velocityY += (lift - baseGravity);
+        // Gerar sustentação baseada na velocidade
+        // Se speed for > 0.8, o avião já começa a querer flutuar sozinho
+        let lift = (this.speed * this.speed) * liftPower;
 
-        // Influência do Nariz (Pitch) na altitude:
-        // Puxar o nariz para cima (pitch > 0) dá um bónus extra de subida
-        this.velocityY += this.pitch * this.speed * 0.01;
+        // Bónus de inclinação: se o nariz estiver para cima, ganha mais lift,
+        // mas só se tiver velocidade suficiente!
+        if (this.pitch > 0) {
+            lift += this.pitch * this.speed * 0.02;
+            this.speed *= 0.995; // Subir custa velocidade (troca energia por altitude)
+        }
 
-        // Estabilizador vertical: impede que o avião acelere infinitamente para cima ou baixo
-        this.velocityY *= 0.92;
+        // Aplicar a força vertical (Sustentação - Gravidade)
+        this.velocityY += (lift - gravityConst);
 
-        // 5. MOVIMENTO E COLISÃO
+        // Estabilizador: impede que o avião "vibre" ou suba descontroladamente
+        this.velocityY *= 0.94;
+
+        // 5. MOVIMENTO
         this.mesh.position.Y += this.velocityY;
         this.mesh.translateZ(this.speed);
 
+        // 6. COLISÃO SOLO
         if (this.mesh.position.Y < 0.6) {
             this._handleGroundCollision();
         }
